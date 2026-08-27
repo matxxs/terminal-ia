@@ -1,0 +1,6 @@
+node_modules/
+dist/
+src/renderer/vendor/
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;" />
+  <title>Terminal IA</title>
+  <link rel="stylesheet" href="./vendor/xterm.css" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app">
+
+    <aside id="sidebar">
+      <header class="sidebar-topo">
+        <div class="marca"><span class="marca-ponto"></span> Terminal IA</div>
+        <button id="btn-recolher" class="icone" title="Recolher (Ctrl+Shift+B)">&#171;</button>
+      </header>
+
+      <section class="painel-sidebar ativo">
+        <div class="barra-acoes">
+          <button id="btn-novo-projeto" class="btn" title="Ctrl+Shift+O">+ Pasta</button>
+          <button id="btn-novo-terminal" class="btn primario" title="Ctrl+Shift+T">+ Terminal</button>
+        </div>
+        <div id="resumo-terminais" class="resumo"></div>
+        <div id="lista-lateral" class="lista"></div>
+        <div class="rodape-sidebar">
+          <button id="btn-historico" class="btn" title="Ctrl+Shift+H">Historico do trabalho</button>
+          <button id="btn-perfis" class="btn sutil">Perfis de terminal</button>
+        </div>
+      </section>
+    </aside>
+
+    <main id="area-principal">
+      <div id="barra-abas">
+        <button id="btn-mostrar-sidebar" class="icone" title="Mostrar barra lateral (Ctrl+Shift+B)">&#187;</button>
+        <div id="abas-terminais" class="abas"></div>
+        <button id="btn-nova-aba" class="icone" title="Novo terminal (Ctrl+Shift+T)">+</button>
+        <div class="espaco"></div>
+        <div id="info-sessao" class="info-sessao"></div>
+      </div>
+
+      <div id="terminais">
+        <div id="boas-vindas" class="boas-vindas">
+        <h1>Terminal IA</h1>
+        <p>Adicione a pasta de um projeto na barra lateral e abra um terminal ja posicionado nela,
+           com <strong>Claude</strong>, <strong>Codex</strong> ou <strong>PowerShell</strong> puro.
+           Cada terminal tem o seu proprio bloco de anotacoes e vira registro no historico ao ser fechado.</p>
+        <div class="atalhos">
+          <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> adicionar pasta</div>
+          <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> novo terminal</div>
+          <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> anotar neste terminal</div>
+          <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> historico</div>
+          <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> barra de comando</div>
+        </div>
+        </div>
+
+        <div id="pasta-vazia" class="boas-vindas oculto">
+          <h1>Nenhum terminal aberto aqui</h1>
+          <p id="pasta-vazia-texto"></p>
+          <button id="btn-terminal-aqui" class="btn primario" title="Ctrl+Shift+T">+ Abrir terminal aqui</button>
+        </div>
+      </div>
+
+      <form id="barra-comando" class="barra-comando">
+        <span class="prompt-simbolo">PS&gt;</span>
+        <input id="entrada-comando" class="entrada-comando" type="text" autocomplete="off"
+               placeholder="Comando PowerShell para o terminal ativo (Ctrl+Shift+K)  |  seta para cima = historico" />
+        <button type="submit" class="btn primario">Executar</button>
+      </form>
+    </main>
+
+    <!-- ------------------- ANOTACOES DO TERMINAL / HISTORICO ------------- -->
+    <aside id="painel-direito" class="painel-direito oculto"></aside>
+  </div>
+
+  <div id="modal-fundo" class="modal-fundo oculto">
+    <div id="modal" class="modal"></div>
+  </div>
+
+  <div id="avisos" class="avisos"></div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

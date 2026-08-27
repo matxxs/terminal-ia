@@ -1,0 +1,902 @@
+:root {
+  --fundo:          #0e1015;
+  --fundo-2:        #151821;
+  --fundo-3:        #1c202b;
+  --borda:          #262b38;
+  --borda-forte:    #343b4d;
+  --texto:          #dfe3ec;
+  --texto-fraco:    #8b93a7;
+  --acento:         #6ea8fe;
+  --acento-suave:   rgba(110, 168, 254, 0.14);
+  --verde:          #4ade80;
+  --amarelo:        #fbbf24;
+  --vermelho:       #f87171;
+  --roxo:           #c084fc;
+  --raio:           8px;
+  --fonte-ui:       'Segoe UI', system-ui, sans-serif;
+  --fonte-mono:     'Cascadia Mono', 'Consolas', monospace;
+
+  /* Colunas por faixa de janela. Usar media query em vez de clamp(vw) porque
+     vw dentro de clamp pode resolver com o viewport anterior durante o resize. */
+  --largura-sidebar: 280px;
+  --largura-painel:  380px;
+}
+
+@media (max-width: 1400px) {
+  :root { --largura-sidebar: 244px; --largura-painel: 340px; }
+}
+
+@media (max-width: 1100px) {
+  :root { --largura-sidebar: 212px; --largura-painel: 320px; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--fonte-ui);
+  font-size: 13px;
+  overflow: hidden;
+  user-select: none;
+}
+
+#app {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--largura-sidebar) 1fr 0;
+  height: 100vh;
+  overflow: hidden;
+  transition: grid-template-columns .16s ease;
+}
+
+#app.sidebar-recolhida  { grid-template-columns: 0 1fr 0; }
+
+/* Coluna zerada ainda renderizaria a borda como um risco de 1px. */
+#app.sidebar-recolhida > #sidebar { border-right: none; }
+#app.painel-aberto      { grid-template-columns: var(--largura-sidebar) 1fr var(--largura-painel); }
+#app.sidebar-recolhida.painel-aberto { grid-template-columns: 0 1fr var(--largura-painel); }
+
+/* Janela estreita com o painel aberto: recolhe a barra lateral em vez de
+   espremer o terminal. Sobrepor o painel esconderia a barra de comando. */
+@media (max-width: 1100px) {
+  #app.painel-aberto { grid-template-columns: 0 1fr var(--largura-painel); }
+  #app.painel-aberto > #sidebar { border-right: none; }
+}
+
+.oculto { display: none !important; }
+
+/* ------------------------------------------------------------- sidebar */
+
+#sidebar {
+  background: var(--fundo-2);
+  border-right: 1px solid var(--borda);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.sidebar-topo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--borda);
+}
+
+.marca { font-weight: 600; letter-spacing: .3px; display: flex; align-items: center; gap: 8px; flex: 1; }
+
+.marca-ponto {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--acento);
+  box-shadow: 0 0 10px var(--acento);
+}
+
+.abas-sidebar { display: flex; border-bottom: 1px solid var(--borda); }
+
+.aba-sidebar {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--texto-fraco);
+  padding: 9px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.aba-sidebar:hover { color: var(--texto); }
+.aba-sidebar.ativa { color: var(--acento); border-bottom-color: var(--acento); }
+
+.painel-sidebar { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.painel-sidebar.ativo { display: flex; }
+
+.barra-acoes { padding: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+.barra-acoes .btn {
+  flex: 1 1 88px;
+  white-space: nowrap;
+  padding: 7px 8px;
+  width: auto;
+}
+.lista { flex: 1; overflow-y: auto; padding: 0 8px 10px; }
+
+.rodape-sidebar {
+  padding: 8px 10px;
+  border-top: 1px solid var(--borda);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rodape-sidebar .btn { width: 100%; }
+
+.resumo {
+  padding: 0 12px 8px;
+  color: var(--texto-fraco);
+  font-size: 11px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.resumo-forte { color: var(--acento); font-weight: 600; }
+.resumo-morto { color: var(--vermelho); }
+
+/* ---------------------------------------- grupo (projeto + seus terminais) */
+
+.grupo { margin-bottom: 10px; }
+
+.grupo-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--fundo-3);
+  border: 1px solid var(--borda);
+}
+
+.grupo-cabecalho:hover { background: rgba(255,255,255,.05); }
+
+/* A cor nao e decorativa: ela diz o que os terminais do projeto estao fazendo. */
+.grupo-cor {
+  width: 4px;
+  height: 30px;
+  border-radius: 3px;
+  flex: none;
+  background: var(--borda-forte);
+}
+
+.grupo[data-situacao="AND"] .grupo-cor {
+  background: var(--acento);
+  color: var(--acento);
+  box-shadow: 0 0 7px currentColor;
+  animation: piscar 1.1s ease-in-out infinite;
+}
+.grupo[data-situacao="OCI"] .grupo-cor { background: var(--verde);     color: var(--verde);     box-shadow: 0 0 7px currentColor; }
+.grupo[data-situacao="MOR"] .grupo-cor { background: var(--vermelho); color: var(--vermelho); box-shadow: 0 0 7px currentColor; }
+
+@keyframes piscar {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .22; }
+}
+
+.ponto-situacao {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--texto-fraco);
+}
+
+.grupo-textos { flex: 1; min-width: 0; }
+
+.grupo-nome {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grupo-caminho {
+  color: var(--texto-fraco);
+  font-size: 10px;
+  font-family: var(--fonte-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grupo-cabecalho.selecionado { border-color: var(--acento); background: var(--acento-suave); }
+
+/* -------------------------------------------------------- badge/acao de aba */
+/* Compartilhados com a aba de terminal na barra de abas (terminais.js). */
+
+.selo-anotacoes {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--texto-fraco);
+  border: 1px solid var(--borda-forte);
+  border-radius: 20px;
+  padding: 0 5px;
+}
+
+.aba-terminal.anotando .selo-anotacoes { color: var(--acento); border-color: var(--acento); }
+
+.terminal-acao {
+  background: none;
+  border: none;
+  color: var(--texto-fraco);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0;
+  flex: none;
+}
+
+.aba-terminal:hover .terminal-acao { opacity: .7; }
+.terminal-acao:hover { color: var(--acento); opacity: 1; }
+.terminal-acao.fechar:hover { color: var(--vermelho); }
+
+/* ---------------------------------------------------- captura de tela */
+
+.captura { margin-top: 2px; }
+
+.captura summary {
+  cursor: pointer;
+  color: var(--texto-fraco);
+  font-size: 11px;
+  padding: 3px 0;
+}
+
+.captura summary:hover { color: var(--acento); }
+
+.captura-corpo {
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  font-family: var(--fonte-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 190px;
+  overflow-y: auto;
+  color: var(--texto-fraco);
+  user-select: text;
+}
+
+.grupo-vazio {
+  color: var(--texto-fraco);
+  font-size: 11px;
+  padding: 2px 4px 8px;
+  font-style: italic;
+}
+
+.projeto-nome {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.projeto-caminho {
+  color: var(--texto-fraco);
+  font-size: 10.5px;
+  font-family: var(--fonte-mono);
+  direction: rtl;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selo {
+  background: var(--acento-suave);
+  color: var(--acento);
+  border-radius: 20px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  flex: none;
+}
+
+.projeto-acoes {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 10px;
+  flex-wrap: wrap;
+}
+
+.botao-lancar {
+  flex: 1 1 auto;
+  min-width: 62px;
+  background: var(--fundo-2);
+  border: 1px solid var(--borda-forte);
+  color: var(--texto);
+  border-radius: 6px;
+  padding: 5px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.botao-lancar:hover { border-color: var(--acento); color: var(--acento); }
+
+.projeto-menu { display: flex; gap: 4px; }
+
+/* ------------------------------------------------------------- historico */
+
+.hist-lista { display: flex; flex-direction: column; gap: 6px; }
+
+.hist-dia {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--texto-fraco);
+  padding: 10px 2px 2px;
+}
+
+.hist-dia:first-child { padding-top: 0; }
+
+.hist-item {
+  border: 1px solid var(--borda);
+  border-left: 3px solid var(--borda-forte);
+  border-radius: var(--raio);
+  background: var(--fundo-3);
+  padding: 8px 10px;
+  cursor: pointer;
+  opacity: .62;
+}
+
+/* Terminal com anotacao e o que conta como trabalho feito: vem em destaque. */
+.hist-item.anotado { opacity: 1; border-left-color: var(--verde); }
+.hist-item:hover   { opacity: 1; background: rgba(255,255,255,.04); }
+
+.hist-linha { display: flex; align-items: center; gap: 6px; }
+
+.hist-marca { color: var(--verde); font-weight: 700; flex: none; width: 10px; text-align: center; }
+.hist-item:not(.anotado) .hist-marca { color: var(--texto-fraco); }
+
+.hist-titulo {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hist-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 10.5px;
+  color: var(--texto-fraco);
+  margin-top: 4px;
+  padding-left: 16px;
+}
+
+.hist-nota {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--texto);
+  margin-top: 5px;
+  padding-left: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hist-remover {
+  background: none;
+  border: none;
+  color: var(--texto-fraco);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0;
+  flex: none;
+}
+
+.hist-item:hover .hist-remover { opacity: .7; }
+.hist-remover:hover { color: var(--vermelho); opacity: 1; }
+
+.etiqueta {
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--fundo);
+  border: 1px solid var(--borda-forte);
+}
+
+.etiqueta.si-AND { color: var(--acento); }
+.etiqueta.si-OCI { color: var(--verde); }
+.etiqueta.si-MOR { color: var(--vermelho); }
+.etiqueta.si-FEC { color: var(--texto-fraco); }
+
+/* ------------------------------------------------------ area principal */
+
+#area-principal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--fundo);
+}
+
+#barra-abas {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--fundo-2);
+  border-bottom: 1px solid var(--borda);
+  padding: 0 6px;
+  height: 38px;
+  flex: none;
+}
+
+.abas { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.abas::-webkit-scrollbar { display: none; }
+.espaco { flex: 1; }
+
+/* So aparece quando a sidebar esta recolhida — e o unico jeito de traze-la
+   de volta sem decorar o atalho, ja que o botao de recolher some junto com ela. */
+#btn-mostrar-sidebar { display: none; flex: none; }
+#app.sidebar-recolhida #btn-mostrar-sidebar { display: inline-flex; align-items: center; }
+
+.aba-terminal {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  color: var(--texto-fraco);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 210px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.aba-terminal:hover { background: var(--fundo-3); color: var(--texto); }
+
+.aba-terminal.ativa {
+  background: var(--fundo);
+  color: var(--texto);
+  border-color: var(--borda);
+}
+
+.aba-terminal.morta .aba-rotulo { text-decoration: line-through; opacity: .6; }
+
+/* O terminal com o bloco de anotacoes aberto fica referenciado aqui. */
+.aba-terminal.anotando { box-shadow: 0 0 0 1px var(--acento); }
+
+/* Mesmo esquema de cor da lateral: azul piscando trabalhando, verde ocioso,
+   vermelho morto. E o unico lugar que ainda mostra isso por terminal. */
+.aba-terminal[data-situacao="AND"] .ponto-situacao {
+  background: var(--acento);
+  animation: piscar 1.1s ease-in-out infinite;
+}
+.aba-terminal[data-situacao="OCI"] .ponto-situacao { background: var(--verde); }
+.aba-terminal[data-situacao="MOR"] .ponto-situacao { background: var(--vermelho); }
+
+.aba-icone {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  border-radius: 3px;
+  padding: 1px 4px;
+  background: var(--acento-suave);
+  color: var(--acento);
+  flex: none;
+}
+
+.aba-rotulo { overflow: hidden; text-overflow: ellipsis; }
+
+.aba-fechar {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: .55;
+}
+
+.aba-fechar:hover { opacity: 1; color: var(--vermelho); }
+
+.info-sessao {
+  color: var(--texto-fraco);
+  font-size: 11px;
+  font-family: var(--fonte-mono);
+  padding-right: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+  flex: 0 1 auto;
+}
+
+/* Sem espaco para o caminho: as abas tem prioridade. */
+@media (max-width: 960px) {
+  .info-sessao { display: none; }
+}
+
+#terminais { flex: 1; position: relative; min-height: 0; }
+
+.host-terminal {
+  position: absolute;
+  inset: 0;
+  padding: 6px 2px 2px 8px;
+  display: none;
+}
+
+.host-terminal.ativo { display: block; }
+
+/* ---------------------------------------------------------- boas vindas */
+
+.boas-vindas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  padding: 24px;
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.boas-vindas h1 { font-size: 26px; font-weight: 700; letter-spacing: -.4px; }
+
+.boas-vindas p {
+  color: var(--texto-fraco);
+  max-width: 520px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+  .boas-vindas h1 { font-size: 20px; }
+  .boas-vindas p  { font-size: 12px; }
+}
+.boas-vindas strong { color: var(--texto); }
+
+/* O bloco inteiro ignora clique (pointer-events:none), menos o botao de
+   "abrir terminal aqui" da pasta vazia. */
+.boas-vindas .btn { pointer-events: auto; }
+
+.atalhos {
+  display: flex;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  color: var(--texto-fraco);
+  font-size: 11.5px;
+  max-width: 620px;
+}
+
+kbd {
+  background: var(--fundo-3);
+  border: 1px solid var(--borda-forte);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--fonte-mono);
+  font-size: 10.5px;
+  color: var(--texto);
+}
+
+/* ------------------------------------------------------- barra comando */
+
+.barra-comando {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--fundo-2);
+  border-top: 1px solid var(--borda);
+  flex: none;
+}
+
+.prompt-simbolo { color: var(--acento); font-family: var(--fonte-mono); font-weight: 700; }
+
+.entrada-comando {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  color: var(--texto);
+  padding: 7px 10px;
+  font-family: var(--fonte-mono);
+  font-size: 12.5px;
+  outline: none;
+  user-select: text;
+}
+
+.entrada-comando:focus { border-color: var(--acento); }
+
+/* O botao acompanha o proprio texto; quem cresce e o campo. */
+.barra-comando .btn { width: auto; flex: 0 0 auto; }
+
+/* -------------------------------------- painel direito (notas/historico) */
+
+.painel-direito {
+  background: var(--fundo-2);
+  border-left: 1px solid var(--borda);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.pd-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px;
+  border-bottom: 1px solid var(--borda);
+}
+
+.pd-topo .ponto-situacao { margin-top: 6px; }
+.pd-topo[data-situacao="AND"] .ponto-situacao { background: var(--acento); animation: piscar 1.1s ease-in-out infinite; }
+.pd-topo[data-situacao="OCI"] .ponto-situacao { background: var(--verde); }
+.pd-topo[data-situacao="MOR"] .ponto-situacao { background: var(--vermelho); }
+
+.pd-cabecalho { flex: 1; min-width: 0; }
+.pd-titulo { font-size: 15px; font-weight: 600; line-height: 1.35; user-select: text; }
+
+.pd-subtitulo { display: flex; align-items: center; gap: 7px; margin-top: 5px; flex-wrap: wrap; }
+
+.pd-projeto { color: var(--texto-fraco); font-size: 11px; }
+
+.pd-identidade {
+  background: var(--fundo-3);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 8px 10px;
+}
+
+.pd-identidade-linha { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.pd-periodo { margin-left: auto; color: var(--texto-fraco); font-size: 10.5px; }
+
+.pd-caminho {
+  color: var(--texto-fraco);
+  font-size: 10px;
+  font-family: var(--fonte-mono);
+  margin-top: 6px;
+  word-break: break-all;
+  user-select: text;
+}
+
+.pd-corpo { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+
+.pd-secao-rotulo {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--texto-fraco);
+  margin-bottom: 6px;
+}
+
+.linha-dupla { display: flex; gap: 8px; }
+.linha-dupla > * { flex: 1; }
+
+.linha-tempo { display: flex; flex-direction: column; gap: 8px; }
+
+.anotacao {
+  background: var(--fundo-3);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 8px 10px;
+  position: relative;
+}
+
+.anotacao-corpo { white-space: pre-wrap; line-height: 1.5; user-select: text; }
+.anotacao-data  { font-size: 10px; color: var(--texto-fraco); margin-top: 5px; font-family: var(--fonte-mono); }
+
+.anotacao-remover {
+  position: absolute; top: 5px; right: 6px;
+  background: none; border: none; color: var(--texto-fraco);
+  cursor: pointer; opacity: 0; font-size: 13px;
+}
+
+.anotacao:hover .anotacao-remover { opacity: .7; }
+.anotacao-remover:hover { color: var(--vermelho); opacity: 1; }
+
+/* ------------------------------------------------------------ controles */
+
+.btn {
+  background: var(--fundo-3);
+  border: 1px solid var(--borda-forte);
+  color: var(--texto);
+  border-radius: var(--raio);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn:hover     { border-color: var(--acento); }
+.btn.primario  { background: var(--acento); border-color: var(--acento); color: #08121f; }
+.btn.primario:hover { filter: brightness(1.08); }
+.btn.bloco     { width: 100%; }
+.btn.sutil     { background: none; border-color: transparent; color: var(--texto-fraco); width: 100%; }
+.btn.sutil:hover { color: var(--acento); }
+.btn.perigo    { color: var(--vermelho); }
+.btn.perigo:hover { border-color: var(--vermelho); }
+.btn.pequeno   { padding: 4px 8px; font-size: 11px; }
+
+.icone {
+  background: none;
+  border: none;
+  color: var(--texto-fraco);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.icone:hover { background: var(--fundo-3); color: var(--texto); }
+
+.campo {
+  width: 100%;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  color: var(--texto);
+  padding: 7px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  user-select: text;
+}
+
+.campo:focus { border-color: var(--acento); }
+textarea.campo { resize: vertical; min-height: 68px; line-height: 1.5; }
+select.campo   { cursor: pointer; }
+
+label.rotulo {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--texto-fraco);
+  margin-bottom: 4px;
+}
+
+.vazio { color: var(--texto-fraco); text-align: center; padding: 26px 14px; line-height: 1.6; font-size: 12px; }
+
+/* ---------------------------------------------------------------- modal */
+
+.modal-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+}
+
+.modal {
+  background: var(--fundo-2);
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  width: min(560px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.55);
+}
+
+.modal-topo {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--borda);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.modal-corpo   { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.modal-rodape  { padding: 12px 16px; border-top: 1px solid var(--borda); display: flex; gap: 8px; justify-content: flex-end; }
+.modal-rodape .btn.primario { width: auto; }
+
+.seletor-cores { display: flex; gap: 7px; flex-wrap: wrap; }
+
+.bolha-cor {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.bolha-cor.ativa { border-color: var(--texto); }
+
+.dica { color: var(--texto-fraco); font-size: 11px; line-height: 1.5; margin: 7px 0; }
+
+.linha-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.linha-check input { accent-color: var(--acento); cursor: pointer; }
+
+.linha-perfil {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--fundo-3);
+}
+
+.linha-perfil .info { flex: 1; min-width: 0; }
+.linha-perfil .sub  { color: var(--texto-fraco); font-size: 10.5px; font-family: var(--fonte-mono); }
+
+/* --------------------------------------------------------------- avisos */
+
+.avisos {
+  position: fixed;
+  bottom: 66px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.aviso {
+  background: var(--fundo-3);
+  border: 1px solid var(--borda-forte);
+  border-left: 3px solid var(--acento);
+  border-radius: var(--raio);
+  padding: 9px 13px;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  max-width: 360px;
+  animation: entra .16s ease;
+}
+
+.aviso.erro { border-left-color: var(--vermelho); }
+.aviso.ok   { border-left-color: var(--verde); }
+
+@keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ------------------------------------------------------------ scrollbar */
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--borda-forte); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #46506a; }
+
+.xterm .xterm-viewport { background: transparent !important; }
