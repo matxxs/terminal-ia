@@ -75,8 +75,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "PREENCHER_DONO_DO_REPO",
-        "repo": "terminal_ia",
+        "owner": "matxxs",
+        "repo": "Terminal-ia",
         "private": true
       }
     ]

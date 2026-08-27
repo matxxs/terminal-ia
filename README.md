@@ -253,16 +253,14 @@ checagem manual a qualquer momento.
 Isso só instala pelo instalador (`nsis`); a versão portátil não recebe update automático — baixe
 uma nova toda vez que quiser trocá-la.
 
-### Publicar uma versão nova
+Repositório: [`matxxs/Terminal-ia`](https://github.com/matxxs/Terminal-ia) (privado).
 
-1. Preencha `owner` em `package.json` → `build.publish` com a conta/organização dona do repositório
-   no GitHub (hoje está `PREENCHER_DONO_DO_REPO`).
-2. O repositório é **privado**, então a máquina que builda **e** as máquinas que rodam o app
+1. O repositório é **privado**, então a máquina que builda **e** as máquinas que rodam o app
    precisam de um token do GitHub com leitura do repositório, na variável de ambiente `GH_TOKEN`
    (ou `GITHUB_TOKEN`) — **configurada nas Variáveis de Ambiente do Windows** (não só na sessão do
    PowerShell), senão o app não a enxerga quando aberto pelo atalho. O token não fica embutido no
    `.exe`: cada instalação precisa da própria variável configurada pra baixar updates.
-3. Suba a versão e publique:
+2. Suba a versão e publique:
    ```powershell
    npm version patch --no-git-tag-version   # 0.1.0 -> 0.1.1
    npm run release                          # builda e publica a release no GitHub
