@@ -123,11 +123,29 @@ function diretorioValido(cwd) {
 }
 
 /**
+ * Troca o "PS C:\pasta>" padrao pelo nome do perfil, so nessa sessao (nao mexe
+ * no $PROFILE do usuario nem em nada persistente) — assim da pra saber de
+ * qual conta/perfil e aquele terminal so de olhar o prompt.
+ */
+function montarComandoPrompt(executavel, rotulo) {
+  const nome = String(executavel || '').toLowerCase();
+  if (nome.includes('powershell') || nome.includes('pwsh')) {
+    const seguro = rotulo.replace(/'/g, "''");
+    return `function prompt { '[${seguro}] ' + $(Get-Location) + '> ' }\r`;
+  }
+  if (nome.includes('cmd.exe')) {
+    const seguro = rotulo.replace(/\$/g, '$$$$'); // no prompt do cmd, $$ vira um $ literal
+    return `prompt [${seguro}]$P$G\r`;
+  }
+  return null; // shell nao reconhecido (ex.: bash) — nao mexe no prompt dele
+}
+
+/**
  * Cria um PTY real (ConPTY no Windows). O shell sempre sobe primeiro; o comando
  * inicial do perfil (claude, codex, ...) e digitado nele depois — assim, se a IA
  * encerrar ou nao estiver instalada, o terminal continua utilizavel.
  */
-function criar(sessionId, { shell, shellArgs, cwd, cols, rows, initialCommand, env }, onData, onExit) {
+function criar(sessionId, { shell, shellArgs, cwd, cols, rows, initialCommand, env, promptLabel }, onData, onExit) {
   encerrar(sessionId);
 
   const executavel = resolverShell(shell);
@@ -192,10 +210,15 @@ function criar(sessionId, { shell, shellArgs, cwd, cols, rows, initialCommand, e
     onExit({ exitCode, signal });
   });
 
-  if (initialCommand && initialCommand.trim()) {
+  if (promptLabel || (initialCommand && initialCommand.trim())) {
     setTimeout(() => {
       const atual = sessoes.get(sessionId);
-      if (atual && atual.vivo) atual.processo.write(`${initialCommand.trim()}\r`);
+      if (!atual || !atual.vivo) return;
+      if (promptLabel) {
+        const comandoPrompt = montarComandoPrompt(executavel, promptLabel);
+        if (comandoPrompt) atual.processo.write(comandoPrompt);
+      }
+      if (initialCommand && initialCommand.trim()) atual.processo.write(`${initialCommand.trim()}\r`);
     }, 450);
   }
 

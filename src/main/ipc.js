@@ -86,6 +86,8 @@ function registrar(getJanela) {
       cwd: diretorio,
       cols, rows,
       initialCommand: perfil?.initial_command,
+      env: perfil?.env,
+      promptLabel: perfil?.name,
     }, (dados) => enviar('term:dados', { id: sessao.id, data: dados }),
        (saida) => enviar('term:fim', { id: sessao.id, ...saida }));
 
@@ -103,6 +105,8 @@ function registrar(getJanela) {
       cwd: sessao.cwd,
       cols, rows,
       initialCommand: perfil?.initial_command,
+      env: perfil?.env,
+      promptLabel: perfil?.name,
     }, (dados) => enviar('term:dados', { id: sessao.id, data: dados }),
        (saida) => enviar('term:fim', { id: sessao.id, ...saida }));
 

@@ -25,6 +25,7 @@ create table if not exists profiles (
   shell_args      text    not null default '[]',
   initial_command text    not null default '',
   icon            text    not null default '>',
+  env             text    not null default '{}',
   builtin         integer not null default 0,
   sort_order      integer not null default 0
 );
@@ -110,10 +111,11 @@ function init(userDataDir) {
  * mas o conteudo continua no arquivo caso seja preciso resgatar algo.
  */
 function migrar() {
-  const colunas = db.prepare('pragma table_info(sessions)').all().map((col) => col.name);
-  const acrescentar = (nome, definicao) => {
-    if (!colunas.includes(nome)) db.exec(`alter table sessions add column ${nome} ${definicao}`);
+  const acrescentarEm = (tabela, nome, definicao) => {
+    const colunas = db.prepare(`pragma table_info(${tabela})`).all().map((col) => col.name);
+    if (!colunas.includes(nome)) db.exec(`alter table ${tabela} add column ${nome} ${definicao}`);
   };
+  const acrescentar = (nome, definicao) => acrescentarEm('sessions', nome, definicao);
 
   acrescentar('project_name', "text not null default ''");
   acrescentar('profile_name', "text not null default ''");
@@ -121,6 +123,8 @@ function migrar() {
   acrescentar('last_output', "text not null default ''");
   acrescentar('last_output_at', 'text');
   acrescentar('closed_at', 'text');
+
+  acrescentarEm('profiles', 'env', "text not null default '{}'");
 
   /* Sessoes fechadas por versoes antigas nao tem data de encerramento; sem ela
      o historico as ordenaria todas no mesmo ponto. */
@@ -206,28 +210,29 @@ function reorderProjects(ids) {
 
 function listProfiles() {
   return db.prepare('select * from profiles order by sort_order, name').all()
-    .map((pro) => ({ ...pro, shell_args: JSON.parse(pro.shell_args || '[]') }));
+    .map((pro) => ({ ...pro, shell_args: JSON.parse(pro.shell_args || '[]'), env: JSON.parse(pro.env || '{}') }));
 }
 
 function getProfile(id) {
   const pro = db.prepare('select * from profiles where id = ?').get(id);
-  return pro ? { ...pro, shell_args: JSON.parse(pro.shell_args || '[]') } : null;
+  return pro ? { ...pro, shell_args: JSON.parse(pro.shell_args || '[]'), env: JSON.parse(pro.env || '{}') } : null;
 }
 
 function saveProfile(perfil) {
   const args = JSON.stringify(perfil.shell_args || []);
+  const env = JSON.stringify(perfil.env || {});
   if (perfil.id) {
     db.prepare(`
-      update profiles set name = ?, shell = ?, shell_args = ?, initial_command = ?, icon = ?
+      update profiles set name = ?, shell = ?, shell_args = ?, initial_command = ?, icon = ?, env = ?
       where id = ?
-    `).run(perfil.name, perfil.shell, args, perfil.initial_command || '', perfil.icon || '>', perfil.id);
+    `).run(perfil.name, perfil.shell, args, perfil.initial_command || '', perfil.icon || '>', env, perfil.id);
     return getProfile(perfil.id);
   }
   const ord = db.prepare('select coalesce(max(sort_order), 0) + 10 as PROXIMO from profiles').get().PROXIMO;
   const res = db.prepare(`
-    insert into profiles (name, shell, shell_args, initial_command, icon, builtin, sort_order)
-    values (?, ?, ?, ?, ?, 0, ?)
-  `).run(perfil.name, perfil.shell, args, perfil.initial_command || '', perfil.icon || '>', ord);
+    insert into profiles (name, shell, shell_args, initial_command, icon, env, builtin, sort_order)
+    values (?, ?, ?, ?, ?, ?, 0, ?)
+  `).run(perfil.name, perfil.shell, args, perfil.initial_command || '', perfil.icon || '>', env, ord);
   return getProfile(Number(res.lastInsertRowid));
 }
 

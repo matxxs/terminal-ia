@@ -201,6 +201,11 @@ function formularioPerfil(perfil) {
   const campoComando = el('input', {
     class: 'campo', value: perfil.initial_command || '', placeholder: 'ex.: claude, codex, npm run dev',
   });
+  const campoEnv = el('textarea', {
+    class: 'campo', rows: '3',
+    placeholder: 'ex.: CLAUDE_CONFIG_DIR=C:\\Users\\voce\\.claude-conta-b',
+  });
+  campoEnv.value = Object.entries(perfil.env || {}).map(([chave, valor]) => `${chave}=${valor}`).join('\n');
 
   abrirModal({
     titulo: perfil.id ? `Editar perfil — ${perfil.name}` : 'Novo perfil',
@@ -212,6 +217,10 @@ function formularioPerfil(perfil) {
       el('div', {}, [el('label', { class: 'rotulo', text: 'Shell' }), campoShell]),
       el('div', {}, [el('label', { class: 'rotulo', text: 'Argumentos do shell' }), campoArgs]),
       el('div', {}, [el('label', { class: 'rotulo', text: 'Comando inicial (opcional)' }), campoComando]),
+      el('div', {}, [
+        el('label', { class: 'rotulo', text: 'Variaveis de ambiente (opcional, uma por linha CHAVE=valor)' }),
+        campoEnv,
+      ]),
     ],
     acoes: [
       { rotulo: 'Cancelar', aoClicar: (fechar) => fechar() },
@@ -220,6 +229,12 @@ function formularioPerfil(perfil) {
         classe: 'primario',
         aoClicar: async (fechar) => {
           if (!campoNome.value.trim()) { aviso('Informe o nome do perfil.', 'erro'); return; }
+          const env = {};
+          for (const linha of campoEnv.value.split('\n')) {
+            const pos = linha.indexOf('=');
+            if (pos <= 0) continue;
+            env[linha.slice(0, pos).trim()] = linha.slice(pos + 1).trim();
+          }
           await window.api.perfis.salvar({
             id: perfil.id,
             name: campoNome.value.trim(),
@@ -227,6 +242,7 @@ function formularioPerfil(perfil) {
             shell_args: campoArgs.value.split(/\s+/).filter(Boolean),
             initial_command: campoComando.value.trim(),
             icon: (campoIcone.value || '>').toUpperCase(),
+            env,
           });
           fechar();
           await recarregarPerfis();
