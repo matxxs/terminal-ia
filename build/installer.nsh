@@ -18,7 +18,7 @@
 !addplugindir /x86-unicode "${BUILD_RESOURCES_DIR}\x86-unicode"
 
 ; Sempre aponta pra ultima release publicada — nao muda a cada version bump.
-!define REPARAR_BASE_URL "https://github.com/matxxs/Terminal-ia/releases/latest/download"
+!define REPARAR_BASE_URL "https://github.com/matxxs/terminal-ia/releases/latest/download"
 
 ; electron-builder compila este script DUAS vezes — uma pro instalador, uma
 ; pro desinstalador (BUILD_UNINSTALLER so existe na segunda). Tudo daqui pra

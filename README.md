@@ -253,7 +253,7 @@ checagem manual a qualquer momento.
 Isso só instala pelo instalador (`nsis`); a versão portátil não recebe update automático — baixe
 uma nova toda vez que quiser trocá-la.
 
-Repositório: [`matxxs/Terminal-ia`](https://github.com/matxxs/Terminal-ia) (público). Sendo
+Repositório: [`matxxs/terminal-ia`](https://github.com/matxxs/terminal-ia) (público). Sendo
 público, as máquinas que **rodam** o app não precisam de nenhum token nem variável de ambiente —
 o `electron-updater` baixa a release direto, sem autenticação.
 
