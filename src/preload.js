@@ -75,6 +75,9 @@ contextBridge.exposeInMainWorld('api', {
   atualizacao: {
     verificar: () => invocar('atualizacao:verificar'),
     instalarAgora: () => invocar('atualizacao:instalarAgora'),
+    aoComecarBaixar: (cb) => ouvir('atualizacao:baixando', cb),
+    aoProgredir: (cb) => ouvir('atualizacao:progresso', cb),
     aoFicarPronta: (cb) => ouvir('atualizacao:pronta', cb),
+    aoFalhar: (cb) => ouvir('atualizacao:erro', cb),
   },
 });

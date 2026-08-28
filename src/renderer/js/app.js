@@ -1,6 +1,6 @@
 /** Ponto de entrada do renderer: liga paineis, atalhos e a barra de comando. */
 
-import { $, el, aviso, modalAberto, fecharModal, abrirModal } from './ui.js';
+import { $, el, aviso, progressoAviso, modalAberto, fecharModal, abrirModal } from './ui.js';
 import { estado, ao, emitir } from './estado.js';
 import * as terminais from './terminais.js';
 import * as projetos from './projetos.js';
@@ -165,9 +165,29 @@ function ligarAtalhos() {
 
 /* -------------------------------------------------------- atualizacao */
 
+/* Vive so entre "comecou a baixar" e "ficou pronta" (ou falhou) — nao ha
+   mais de um download por vez, entao um unico toast ativo basta. */
+let progressoAtualizacao = null;
+
 /** Checagem automatica ao abrir + a cada 4h ja roda no main; aqui so o gatilho manual do menu. */
 function ligarAtualizacao() {
+  window.api.atualizacao.aoComecarBaixar(({ versao }) => {
+    progressoAtualizacao?.remover();
+    progressoAtualizacao = progressoAviso(`Baixando a versao ${versao}...`);
+    progressoAtualizacao.atualizar(0);
+  });
+
+  window.api.atualizacao.aoProgredir(({ percent }) => progressoAtualizacao?.atualizar(percent));
+
+  window.api.atualizacao.aoFalhar(() => {
+    progressoAtualizacao?.remover();
+    progressoAtualizacao = null;
+  });
+
   window.api.atualizacao.aoFicarPronta(({ versao }) => {
+    progressoAtualizacao?.remover();
+    progressoAtualizacao = null;
+
     abrirModal({
       titulo: 'Atualizacao pronta',
       corpo: [el('p', {
@@ -176,18 +196,43 @@ function ligarAtualizacao() {
       })],
       acoes: [
         { rotulo: 'Mais tarde', aoClicar: (fechar) => fechar() },
-        { rotulo: 'Reiniciar agora', classe: 'perigo', aoClicar: (fechar) => { fechar(); window.api.atualizacao.instalarAgora(); } },
+        { rotulo: 'Reiniciar agora', classe: 'perigo', aoClicar: () => mostrarTelaAtualizando() },
       ],
     });
   });
+}
+
+/**
+ * Troca o modal (ja aberto) por uma tela sem botoes antes de instalar — sem
+ * isso, o app simplesmente desaparece da tela ao clicar em "Reiniciar agora"
+ * e parece ter travado/fechado sozinho em vez de estar fazendo algo.
+ */
+function mostrarTelaAtualizando() {
+  abrirModal({
+    titulo: 'Atualizacao',
+    corpo: [el('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:14px;padding:6px 0' }, [
+      el('div', { class: 'spinner-atualizacao' }),
+      el('p', {
+        text: 'Instalando a nova versao... o Terminal IA vai fechar e abrir sozinho.',
+        style: 'line-height:1.6;text-align:center',
+      }),
+    ])],
+    acoes: [],
+  });
+  /* Espera o navegador pintar essa tela antes do processo comecar a fechar
+     pra instalar — sem o atraso, o quitAndInstall() pode disparar antes do
+     spinner sequer aparecer. */
+  setTimeout(() => window.api.atualizacao.instalarAgora(), 400);
 }
 
 async function verificarAtualizacoesManual() {
   try {
     const resultado = await window.api.atualizacao.verificar();
     if (!resultado.ativo) { aviso('Checagem de atualizacao nao disponivel neste modo (build de desenvolvimento).', 'info'); return; }
-    if (resultado.temAtualizacao) aviso(`Baixando a versao ${resultado.versao} em segundo plano...`, 'ok');
-    else aviso('Voce ja esta na versao mais recente.', 'ok');
+    /* Achou versao nova: o toast com a barra de progresso (ligarAtualizacao,
+       evento 'atualizacao:baixando') ja avisa e acompanha o download — avisar
+       aqui tambem duplicaria a mensagem. */
+    if (!resultado.temAtualizacao) aviso('Voce ja esta na versao mais recente.', 'ok');
   } catch (erro) {
     aviso(`Falha ao verificar atualizacoes: ${erro.message}`, 'erro', 6000);
   }

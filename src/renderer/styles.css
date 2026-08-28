@@ -892,6 +892,28 @@ label.rotulo {
 
 @keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+.aviso-barra {
+  margin-top: 7px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--borda-forte);
+  overflow: hidden;
+}
+.aviso-barra-fill { height: 100%; width: 0%; background: var(--acento); transition: width .2s ease; }
+
+/* -------------------------------------------------------------- spinner */
+
+.spinner-atualizacao {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--borda-forte);
+  border-top-color: var(--acento);
+  border-radius: 50%;
+  animation: girar .8s linear infinite;
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+
 /* ------------------------------------------------------------ scrollbar */
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }

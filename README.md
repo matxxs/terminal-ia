@@ -253,20 +253,20 @@ checagem manual a qualquer momento.
 Isso só instala pelo instalador (`nsis`); a versão portátil não recebe update automático — baixe
 uma nova toda vez que quiser trocá-la.
 
-Repositório: [`matxxs/Terminal-ia`](https://github.com/matxxs/Terminal-ia) (privado).
+Repositório: [`matxxs/Terminal-ia`](https://github.com/matxxs/Terminal-ia) (público). Sendo
+público, as máquinas que **rodam** o app não precisam de nenhum token nem variável de ambiente —
+o `electron-updater` baixa a release direto, sem autenticação.
 
-1. O repositório é **privado**, então a máquina que builda **e** as máquinas que rodam o app
-   precisam de um token do GitHub com leitura do repositório, na variável de ambiente `GH_TOKEN`
-   (ou `GITHUB_TOKEN`) — **configurada nas Variáveis de Ambiente do Windows** (não só na sessão do
-   PowerShell), senão o app não a enxerga quando aberto pelo atalho. O token não fica embutido no
-   `.exe`: cada instalação precisa da própria variável configurada pra baixar updates.
-2. Suba a versão e publique:
-   ```powershell
-   npm version patch --no-git-tag-version   # 0.1.0 -> 0.1.1
-   npm run release                          # builda e publica a release no GitHub
-   ```
-   `npm run release` só funciona com o `GH_TOKEN` acima presente no ambiente — é ele quem
-   autentica o `electron-builder` a criar a release e subir os artefatos.
+Só quem **publica** uma versão nova precisa de um token do GitHub (com permissão de escrita em
+Contents/Releases do repositório), na variável de ambiente `GH_TOKEN` (ou `GITHUB_TOKEN`):
+
+```powershell
+npm version patch --no-git-tag-version   # 0.1.0 -> 0.1.1
+npm run release                          # builda e publica a release no GitHub
+```
+
+`npm run release` só funciona com o `GH_TOKEN` acima presente no ambiente — é ele quem autentica
+o `electron-builder` a criar a release e subir os artefatos.
 
 ## Onde ficam os dados
 
