@@ -28,6 +28,55 @@ function abasDoGrupo(chave) {
   return [...abas.values()].filter((item) => chaveGrupo(grupoDe(item.sessao)) === chave);
 }
 
+const EH_MAC = window.api.app.plataforma === 'darwin';
+
+/**
+ * Por padrao o xterm.js trata Ctrl+C como SIGINT e Ctrl+V como um caractere
+ * de controle cru (SYN) em qualquer situacao, cancelando o evento — por isso
+ * copiar/colar nunca funcionava, em nenhuma sessao (claude, codex, shell...).
+ * Aqui a gente reassume esses atalhos: Ctrl+C copia so quando ha selecao
+ * (senao cai no comportamento padrao de interromper o processo); Ctrl+V
+ * sempre cola o conteudo da area de transferencia.
+ */
+function ligarClipboard(term, host) {
+  term.attachCustomKeyEventHandler((evento) => {
+    if (evento.type !== 'keydown') return true;
+    const tecla = EH_MAC ? evento.metaKey : evento.ctrlKey;
+    if (!tecla || evento.altKey || evento.shiftKey) return true;
+
+    if (evento.key === 'c' || evento.key === 'C') {
+      if (!term.hasSelection()) return true;
+      evento.preventDefault();
+      window.api.clipboard.escrever(term.getSelection());
+      term.clearSelection();
+      return false;
+    }
+
+    if (evento.key === 'v' || evento.key === 'V') {
+      /* Sem preventDefault aqui, o navegador ainda dispara o evento nativo
+         'paste' no textarea do xterm — que o proprio xterm.js escuta e usa
+         pra colar sozinho — duplicando o texto colado junto com o term.paste
+         manual abaixo. */
+      evento.preventDefault();
+      window.api.clipboard.ler().then((texto) => { if (texto) term.paste(texto); });
+      return false;
+    }
+
+    return true;
+  });
+
+  /* Botao direito no padrao Windows Terminal: copia se ha selecao, cola senao. */
+  host.addEventListener('contextmenu', (evento) => {
+    evento.preventDefault();
+    if (term.hasSelection()) {
+      window.api.clipboard.escrever(term.getSelection());
+      term.clearSelection();
+    } else {
+      window.api.clipboard.ler().then((texto) => { if (texto) term.paste(texto); });
+    }
+  });
+}
+
 const TEMA = {
   background: '#0e1015', foreground: '#dfe3ec', cursor: '#6ea8fe', cursorAccent: '#0e1015',
   selectionBackground: 'rgba(110,168,254,.30)',
@@ -144,6 +193,7 @@ function montarAba(sessao) {
   const fit = new FitAddon();
   term.loadAddon(fit);
   term.open(host);
+  ligarClipboard(term, host);
 
   term.onData((dados) => window.api.term.escrever(sessao.id, dados));
   term.onResize(({ cols, rows }) => window.api.term.redimensionar(sessao.id, cols, rows));

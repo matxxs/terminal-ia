@@ -2,7 +2,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { ipcMain, dialog, shell } = require('electron');
+const { ipcMain, dialog, shell, clipboard } = require('electron');
 
 const db = require('./db');
 const ptys = require('./pty-manager');
@@ -154,6 +154,14 @@ function registrar(getJanela) {
 
   on('atualizacao:verificar', () => updater.verificarAgora());
   on('atualizacao:instalarAgora', () => { updater.instalarAgora(); return true; });
+
+  /* -------------------------------------------------------- clipboard */
+
+  /* Ctrl+C/Ctrl+V e o botao direito no terminal passam por aqui (ver
+     terminais.js): o modulo clipboard do Electron evita depender da API
+     navigator.clipboard do renderer, que exige permissao em alguns contextos. */
+  on('clipboard:ler', () => clipboard.readText());
+  on('clipboard:escrever', (texto) => { clipboard.writeText(texto || ''); return true; });
 
   function enviar(canal, carga) {
     const janela = getJanela();

@@ -68,6 +68,10 @@ contextBridge.exposeInMainWorld('api', {
     aoReceberAtalho: (cb) => ouvir('app:atalho', cb),
     plataforma: process.platform,
   },
+  clipboard: {
+    ler: () => invocar('clipboard:ler'),
+    escrever: (texto) => invocar('clipboard:escrever', texto),
+  },
   atualizacao: {
     verificar: () => invocar('atualizacao:verificar'),
     instalarAgora: () => invocar('atualizacao:instalarAgora'),
