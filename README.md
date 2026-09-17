@@ -166,6 +166,31 @@ no PATH, você continua com um terminal utilizável em vez de uma aba morta.
 Dá para criar perfis próprios (`npm run dev`, `docker compose up`, o que for) em *Perfis de
 terminal*, no rodapé da barra lateral.
 
+### Retomar a conversa após reiniciar
+
+Cada aba guarda no banco o agente e o ID da sua conversa. Ao reabrir o aplicativo ou usar
+`Ctrl+Shift+R`, ela executa `codex resume ID` ou `claude --resume ID`, na pasta e com o perfil
+daquela aba. Duas abas na mesma pasta podem retomar conversas diferentes. No histórico,
+**Retomar esta conversa** abre uma nova aba vinculada ao ID salvo.
+
+A captura automática funciona com comandos diretos `codex` e `claude` nos perfis PowerShell
+e CMD, usando hooks de início de sessão e fim de resposta. Os agentes precisam oferecer esses
+hooks. No Codex, se aparecer aviso de hooks pendentes, abra `/hooks` e autorize os comandos
+de captura do Terminal IA. O aplicativo não desativa a revisão de hooks. Depois da autorização,
+o ID será capturado no próximo evento, inclusive ao terminar uma resposta.
+
+Para conversas antigas ou quando os hooks estiverem desativados, abra as anotações da aba
+(`Ctrl+Shift+N`), escolha o agente em **Conversa para retomar**, cole somente o ID e clique em
+**Salvar conversa**. Esse vínculo será usado na próxima abertura/reinicialização da aba.
+A captura grava apenas o ID nos dados locais do aplicativo; o histórico da conversa continua
+sendo armazenado pelo próprio agente. O ID não recupera uma conversa apagada nos dados do agente.
+
+Comandos personalizados com scripts, pipelines, `--settings` próprio do Claude ou configuração
+explícita de hooks não recebem captura automática. Para retomar por ID nesses perfis, use um
+comando direto compatível (`codex resume` deve vir antes das opções). Comandos com um prompt
+inicial também ficam fora da captura, para não reenviar a tarefa a cada reinício.
+As configurações globais dos agentes não são modificadas.
+
 ### Barra de comando
 
 O campo no rodapé manda um comando PowerShell direto para a aba ativa, sem tirar o foco do que você
@@ -206,7 +231,9 @@ remove a entrada do histórico junto com suas anotações.
 
 Claude Code e Codex redesenham a tela continuamente enquanto processam (spinner, contador de tokens)
 e ficam em silêncio ao aguardar você. O app observa o fluxo de saída do PTY: **2,5 s de silêncio =
-ocioso**. Os rótulos de interrupção (`esc to interrupt`) reforçam a detecção enquanto estão visíveis.
+ocioso** (atualizado na próxima verificação, a cada 0,6 s). Rótulos como `esc to interrupt`
+no histórico não mantêm o terminal ocupado depois que a saída para. Uma pausa imposta pelo
+controle de fluxo do próprio app não conta como silêncio da IA.
 
 É o que acende o ponto azul na barra lateral e o que dispara a captura de *onde eu parei*. É
 heurística, não uma API oficial.
@@ -274,8 +301,9 @@ Tudo num SQLite em `%APPDATA%\terminal-ia\terminal-ia.db`: projetos, perfis, ter
 os já encerrados, que formam o histórico), anotações, capturas de tela, histórico de comandos e
 tamanho da janela.
 
-As abas abertas são registradas e **recriadas na próxima abertura** — o processo é novo, o histórico
-de rolagem anterior não volta. As migrações de schema são idempotentes, então atualizar o app não
+As abas abertas são registradas e **recriadas na próxima abertura** — o processo é novo e, quando
+há ID de conversa salvo, o agente retoma aquela conversa. O histórico de rolagem anterior do
+terminal não volta. As migrações de schema são idempotentes, então atualizar o app não
 apaga seus dados. Versões antigas guardavam tarefas em `tasks`/`task_notes`; essas tabelas não são
 mais usadas, mas continuam no arquivo, intactas.
 

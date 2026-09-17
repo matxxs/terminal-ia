@@ -123,6 +123,9 @@ function migrar() {
   acrescentar('last_output', "text not null default ''");
   acrescentar('last_output_at', 'text');
   acrescentar('closed_at', 'text');
+  acrescentar('agent_kind', 'text');
+  acrescentar('agent_session_id', 'text');
+  acrescentar('agent_capture_token', 'text');
 
   acrescentarEm('profiles', 'env', "text not null default '{}'");
 
@@ -246,6 +249,7 @@ function deleteProfile(id) {
 const CAMPOS_SESSAO = `
   SES.id, SES.project_id, SES.profile_id, SES.title, SES.cwd, SES.open,
   SES.sort_order, SES.last_output, SES.last_output_at,
+  SES.agent_kind, SES.agent_session_id, SES.agent_capture_token,
   SES.created_at, SES.last_active_at, SES.closed_at,
   coalesce(PRO.name, SES.project_name) as NOME_PROJETO,
   PRO.color as COR_PROJETO,
@@ -293,6 +297,12 @@ function touchSession(id, title) {
   if (title) db.prepare('update sessions set last_active_at = ?, title = ? where id = ?').run(now(), title, id);
   else db.prepare('update sessions set last_active_at = ? where id = ?').run(now(), id);
   return true;
+}
+
+/** ID da conversa do agente, independente do ID numerico da aba. */
+function saveAgentSession(id, agent, conversationId, captureToken = null) {
+  db.prepare('update sessions set agent_kind = ?, agent_session_id = ?, agent_capture_token = ? where id = ?')
+    .run(agent, conversationId, captureToken, id);
 }
 
 /** Fechar o terminal e o que move a sessao para o historico. */
@@ -427,6 +437,7 @@ module.exports = {
   listProfiles, getProfile, saveProfile, deleteProfile,
   listOpenSessions, getSession, createSession, touchSession, closeSession, reorderSessions,
   saveSessionOutput, deleteSession,
+  saveAgentSession,
   listSessionNotes, addSessionNote, deleteSessionNote,
   listSessionHistory,
   addCommandHistory, listCommandHistory, getSetting, setSetting,

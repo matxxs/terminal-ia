@@ -88,6 +88,7 @@ function corpo(sessao, situacao) {
 
   return el('div', { class: 'pd-corpo' }, [
     blocoIdentidade(sessao, situacao),
+    blocoConversa(sessao),
 
     el('div', {}, [
       el('div', { class: 'pd-secao-rotulo', text: 'Registrar anotacao' }),
@@ -111,7 +112,7 @@ function corpo(sessao, situacao) {
     ]) : null,
 
     !sessao.open ? el('button', {
-      class: 'btn bloco', text: 'Reabrir um terminal aqui',
+      class: 'btn bloco', text: sessao.agent_session_id ? 'Retomar esta conversa' : 'Reabrir um terminal aqui',
       title: `Abre ${sessao.NOME_PERFIL || 'o mesmo perfil'} em ${sessao.cwd}`,
       onclick: async () => {
         const nova = await abrirTerminal({
@@ -119,10 +120,38 @@ function corpo(sessao, situacao) {
           profileId: sessao.profile_id,
           cwd: sessao.cwd,
           title: sessao.title,
+          resumeSessionId: sessao.id,
         });
         if (nova) abrir(nova.id);
       },
     }) : null,
+  ]);
+}
+
+function blocoConversa(sessao) {
+  const agente = el('select', { class: 'campo', 'aria-label': 'Agente da conversa' }, [
+    el('option', { value: 'codex', text: 'Codex' }),
+    el('option', { value: 'claude', text: 'Claude Code' }),
+  ]);
+  agente.value = sessao.agent_kind || (/claude/i.test(sessao.NOME_PERFIL) ? 'claude' : 'codex');
+  const campo = el('input', {
+    class: 'campo', value: sessao.agent_session_id || '', placeholder: 'ID da conversa',
+    'aria-label': 'ID da conversa', spellcheck: 'false',
+  });
+  const salvar = async () => {
+    try {
+      await window.api.sessoes.vincularConversa(sessao.id, agente.value, campo.value.trim());
+      aviso('Conversa salva. Sera retomada ao reabrir ou reiniciar esta aba.', 'ok');
+      await abrir(sessao.id);
+    } catch (erro) { aviso(erro.message, 'erro'); }
+  };
+  return el('div', {}, [
+    el('div', { class: 'pd-secao-rotulo', text: 'Conversa para retomar' }),
+    el('p', { class: 'dica', text: sessao.agent_session_id
+      ? 'Esta aba retoma a conversa salva ao reabrir o aplicativo.'
+      : 'O ID sera salvo automaticamente quando o agente informar. Para uma conversa antiga, cole o ID aqui. No Codex, autorize a captura em /hooks se solicitado.' }),
+    agente, campo,
+    el('button', { class: 'btn bloco', text: 'Salvar conversa', style: 'margin-top:6px', onclick: salvar }),
   ]);
 }
 

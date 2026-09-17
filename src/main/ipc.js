@@ -2,13 +2,18 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { ipcMain, dialog, shell, clipboard } = require('electron');
+const { app, ipcMain, dialog, shell, clipboard } = require('electron');
 
 const db = require('./db');
 const ptys = require('./pty-manager');
 const updater = require('./updater');
+const { criarGerenciador } = require('./agent-sessions');
 
 function registrar(getJanela) {
+  const agentes = criarGerenciador(app.getPath('userData'), db, (id) => {
+    enviar('sessoes:mudaram', { ids: [id], motivo: 'CONVERSA' });
+  });
+  app.on('before-quit', () => agentes.encerrarTodos());
   /* Quando a IA para, a tela vira a fotografia de "onde eu parei" do terminal. */
   ptys.definirObservadorAtividade((sessionId, ocupado) => {
     const guardou = ocupado ? false : db.saveSessionOutput(sessionId, ptys.obterResumoTela(sessionId));
@@ -62,9 +67,32 @@ function registrar(getJanela) {
 
   /* ------------------------------------------------------------- terminais */
 
+  function iniciarSessao(sessao, perfil, cols, rows) {
+    try {
+      const inicio = agentes.preparar(sessao, perfil);
+      const info = ptys.criar(sessao.id, {
+        shell: perfil?.shell, shellArgs: perfil?.shell_args,
+        cwd: sessao.cwd, cols, rows, ...inicio, promptLabel: perfil?.name,
+      }, (dados) => enviar('term:dados', { id: sessao.id, data: dados }),
+         (saida) => { agentes.encerrar(sessao.id); enviar('term:fim', { id: sessao.id, ...saida }); });
+      return { ...db.getSession(sessao.id), shell: info.shell };
+    } catch (erro) {
+      agentes.encerrar(sessao.id);
+      throw erro;
+    }
+  }
+
   on('term:listarSessoes', () => db.listOpenSessions());
 
-  on('term:abrir', ({ projectId, profileId, title, cwd, cols, rows }) => {
+  on('term:abrir', ({ projectId, profileId, title, cwd, cols, rows, resumeSessionId }) => {
+    const anterior = resumeSessionId ? db.getSession(resumeSessionId) : null;
+    if (resumeSessionId && !anterior) throw new Error('Terminal anterior nao encontrado.');
+    if (anterior) {
+      projectId = anterior.project_id;
+      profileId = anterior.profile_id;
+      cwd = anterior.cwd;
+      title = anterior.title;
+    }
     const projeto = projectId ? db.getProject(projectId) : null;
     const perfil = profileId ? db.getProfile(profileId) : null;
     const diretorio = cwd || projeto?.path || process.env.USERPROFILE || process.cwd();
@@ -80,38 +108,23 @@ function registrar(getJanela) {
       cwd: diretorio,
     });
 
-    const info = ptys.criar(sessao.id, {
-      shell: perfil?.shell,
-      shellArgs: perfil?.shell_args,
-      cwd: diretorio,
-      cols, rows,
-      initialCommand: perfil?.initial_command,
-      env: perfil?.env,
-      promptLabel: perfil?.name,
-    }, (dados) => enviar('term:dados', { id: sessao.id, data: dados }),
-       (saida) => enviar('term:fim', { id: sessao.id, ...saida }));
-
-    return { ...sessao, shell: info.shell };
+    try {
+      if (anterior?.agent_session_id) agentes.vincular(sessao.id, anterior.agent_kind, anterior.agent_session_id);
+      return iniciarSessao(sessao, perfil, cols, rows);
+    } catch (erro) {
+      db.deleteSession(sessao.id); // Desfaz somente a aba que nao chegou a abrir.
+      throw erro;
+    }
   });
 
   on('term:reconectar', ({ sessionId, cols, rows }) => {
     const sessao = db.getSession(sessionId);
     if (!sessao || !sessao.open) throw new Error('Sessao nao encontrada.');
     const perfil = sessao.profile_id ? db.getProfile(sessao.profile_id) : null;
-
-    const info = ptys.criar(sessao.id, {
-      shell: perfil?.shell,
-      shellArgs: perfil?.shell_args,
-      cwd: sessao.cwd,
-      cols, rows,
-      initialCommand: perfil?.initial_command,
-      env: perfil?.env,
-      promptLabel: perfil?.name,
-    }, (dados) => enviar('term:dados', { id: sessao.id, data: dados }),
-       (saida) => enviar('term:fim', { id: sessao.id, ...saida }));
-
+    agentes.encerrar(sessao.id);
+    const iniciada = iniciarSessao(db.getSession(sessao.id), perfil, cols, rows);
     db.touchSession(sessao.id);
-    return { ...sessao, shell: info.shell };
+    return iniciada;
   });
 
   on('term:escrever', ({ id, data }) => ptys.escrever(id, data));
@@ -125,6 +138,7 @@ function registrar(getJanela) {
 
   /* Fechar o terminal e o unico caminho para o historico. */
   on('term:fechar', ({ id }) => {
+    agentes.encerrar(id);
     db.saveSessionOutput(id, ptys.obterResumoTela(id));
     ptys.encerrar(id);
     const sessao = db.closeSession(id);
@@ -142,6 +156,7 @@ function registrar(getJanela) {
   /* ------------------------------------------------------------- anotacoes */
 
   on('sessoes:obter', (id) => db.getSession(id));
+  on('sessoes:vincularConversa', ({ id, agente, conversa }) => agentes.vincular(id, agente, conversa));
   on('sessoes:anotacoes', (id) => db.listSessionNotes(id));
   on('sessoes:anotar', ({ sessionId, body }) => db.addSessionNote(sessionId, body, 'NOT'));
   on('sessoes:excluirAnotacao', (id) => db.deleteSessionNote(id));

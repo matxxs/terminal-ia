@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   sessoes: {
     obter: (id) => invocar('sessoes:obter', id),
+    vincularConversa: (id, agente, conversa) => invocar('sessoes:vincularConversa', { id, agente, conversa }),
     anotacoes: (id) => invocar('sessoes:anotacoes', id),
     anotar: (sessionId, body) => invocar('sessoes:anotar', { sessionId, body }),
     excluirAnotacao: (id) => invocar('sessoes:excluirAnotacao', id),

@@ -11,8 +11,9 @@ const sessoes = new Map();
 /**
  * Claude Code e Codex redesenham a tela continuamente enquanto processam
  * (spinner + contador de tokens) e ficam em silencio ao aguardar o usuario.
- * A atividade e inferida disso, com os rotulos de interrupcao como reforco:
- * enquanto "esc to interrupt" estiver na tela, a IA esta trabalhando.
+ * A atividade e inferida da saida recente. Rotulos como "esc to interrupt"
+ * podem permanecer no historico depois de apagados da tela e nao comprovam
+ * que a IA continua trabalhando.
  */
 const SILENCIO_MS = 2500;
 const INTERVALO_VARREDURA = 600;
@@ -40,13 +41,6 @@ const LOTE_MS = 16;
 const LIMIAR_PAUSA_BYTES = 200_000;
 const LIMIAR_RETOMADA_BYTES = 50_000;
 
-const MARCADORES_OCUPADO = [
-  /esc to interrupt/i,
-  /esc para interromper/i,
-  /ctrl\+c to (stop|cancel)/i,
-  /\btokens?\b.*\besc\b/i,
-];
-
 let temporizadorVarredura = null;
 let aoMudarAtividade = () => {};
 
@@ -63,7 +57,6 @@ function limparAnsi(texto) {
 
 function registrarSaida(estado, dados) {
   estado.tela = (estado.tela + limparAnsi(dados)).slice(-4000);
-  estado.marcadorOcupado = MARCADORES_OCUPADO.some((rx) => rx.test(estado.tela));
   /* Redesenho provocado por resize nosso nao e trabalho da IA. */
   if (Date.now() < estado.silenciarAte) return;
   estado.ultimaSaida = Date.now();
@@ -73,7 +66,8 @@ function avaliarAtividade() {
   const agora = Date.now();
   for (const [id, estado] of sessoes) {
     if (!estado.vivo) continue;
-    const ocupado = estado.marcadorOcupado || (agora - estado.ultimaSaida) < SILENCIO_MS;
+    // Uma pausa imposta pelo nosso controle de fluxo nao e silencio da IA.
+    const ocupado = estado.pausadoPorFluxo || (agora - estado.ultimaSaida) < SILENCIO_MS;
 
     if (!estado.aquecido) {
       const assentou = !ocupado;
@@ -161,7 +155,7 @@ function criar(sessionId, { shell, shellArgs, cwd, cols, rows, initialCommand, e
 
   const estado = {
     processo, cwd: diretorio, shell: executavel, vivo: true,
-    tela: '', ocupado: false, marcadorOcupado: false,
+    tela: '', ocupado: false,
     /* Nasce "com saida recente": sem isso, uma varredura antes do primeiro byte
        consideraria a sessao ja assentada e anularia o aquecimento. */
     ultimaSaida: Date.now(),
@@ -188,6 +182,7 @@ function criar(sessionId, { shell, shellArgs, cwd, cols, rows, initialCommand, e
   }
 
   processo.onData((dados) => {
+    if (!estado.vivo || sessoes.get(sessionId) !== estado) return;
     registrarSaida(estado, dados);
     estado.bufferSaida.push(dados);
     if (!estado.temporizadorLote) {
@@ -197,6 +192,7 @@ function criar(sessionId, { shell, shellArgs, cwd, cols, rows, initialCommand, e
   });
 
   processo.onExit(({ exitCode, signal }) => {
+    if (sessoes.get(sessionId) !== estado) return;
     estado.vivo = false;
     if (estado.temporizadorLote) { clearTimeout(estado.temporizadorLote); estado.temporizadorLote = null; }
     /* Ultimas linhas antes de morrer (erro, stack trace) nao podem ficar presas no lote. */
@@ -205,7 +201,8 @@ function criar(sessionId, { shell, shellArgs, cwd, cols, rows, initialCommand, e
       estado.bufferSaida.length = 0;
       onData(lote);
     }
-    if (estado.ocupado) aoMudarAtividade(sessionId, false);
+    estado.ocupado = false;
+    aoMudarAtividade(sessionId, false);
     sessoes.delete(sessionId);
     onExit({ exitCode, signal });
   });
@@ -213,7 +210,7 @@ function criar(sessionId, { shell, shellArgs, cwd, cols, rows, initialCommand, e
   if (promptLabel || (initialCommand && initialCommand.trim())) {
     setTimeout(() => {
       const atual = sessoes.get(sessionId);
-      if (!atual || !atual.vivo) return;
+      if (atual !== estado || !atual.vivo) return;
       if (promptLabel) {
         const comandoPrompt = montarComandoPrompt(executavel, promptLabel);
         if (comandoPrompt) atual.processo.write(comandoPrompt);

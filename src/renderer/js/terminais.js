@@ -150,9 +150,9 @@ export function reajustar() { ajustar(idAtivo); }
 
 /* --------------------------------------------------------- ciclo de vida */
 
-export async function abrirTerminal({ projectId = null, profileId = null, cwd = null, title = null }) {
+export async function abrirTerminal({ projectId = null, profileId = null, cwd = null, title = null, resumeSessionId = null }) {
   try {
-    const sessao = await window.api.term.abrir({ projectId, profileId, cwd, title, cols: 100, rows: 30 });
+    const sessao = await window.api.term.abrir({ projectId, profileId, cwd, title, resumeSessionId, cols: 100, rows: 30 });
     montarAba(sessao);
     ativar(sessao.id);
     return sessao;
@@ -168,12 +168,19 @@ export async function restaurarSessoes() {
     try {
       const viva = await window.api.term.reconectar({ sessionId: sessao.id, cols: 100, rows: 30 });
       montarAba({ ...sessao, ...viva });
-    } catch {
-      await window.api.term.fechar(sessao.id);
+    } catch (erro) {
+      montarAba(sessao);
+      const item = abas.get(sessao.id);
+      item.vivo = false;
+      item.aba.classList.add('morta');
+      atualizarSituacaoAba(item);
+      aviso(`Nao foi possivel restaurar ${sessao.title}: ${erro.message}`, 'erro');
+      item.term.write('\r\nNao foi possivel restaurar esta aba. Corrija o perfil e use Ctrl+Shift+R para tentar novamente.\r\n');
     }
   }
   if (sessoes.length) ativar(sessoes[0].id);
   atualizarVazio();
+  emitir('terminais:alterados');
 }
 
 function montarAba(sessao) {
