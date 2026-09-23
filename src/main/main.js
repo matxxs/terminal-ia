@@ -1,12 +1,13 @@
 'use strict';
 
 const path = require('node:path');
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
 
 const db = require('./db');
 const ipc = require('./ipc');
 const ptys = require('./pty-manager');
 const updater = require('./updater');
+const configurarFechamento = require('./close-confirmation');
 
 let janela = null;
 
@@ -58,6 +59,7 @@ function criarJanela() {
   janela.on('resize', salvarBounds);
   janela.on('move', salvarBounds);
   janela.on('close', salvarBounds);
+  configurarFechamento(janela, { db, dialog, estaInstalando: updater.estaInstalando });
   janela.on('closed', () => { janela = null; });
 
   janela.webContents.setWindowOpenHandler(({ url }) => {
@@ -123,4 +125,4 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', () => ptys.encerrarTodos());
+app.on('will-quit', () => ptys.encerrarTodos());

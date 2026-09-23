@@ -16,6 +16,7 @@ const { autoUpdater } = require('electron-updater');
 const INTERVALO_VERIFICACAO_MS = 4 * 60 * 60 * 1000;
 
 let logPath = null;
+let instalando = false;
 
 /**
  * Log em arquivo (alem do console, que some numa build empacotada — sem
@@ -57,6 +58,7 @@ function iniciar(getJanela) {
   autoUpdater.on('download-progress', (info) => enviar('atualizacao:progresso', { percent: Math.round(info.percent) }));
   autoUpdater.on('update-downloaded', (info) => enviar('atualizacao:pronta', { versao: info.version }));
   autoUpdater.on('error', (erro) => {
+    instalando = false;
     log('error', `evento 'error' do autoUpdater: ${erro?.stack || erro?.message || erro}`);
     /* Se a barra de progresso jah apareceu (download-progress chegou a disparar),
        sem isso ela ficaria presa na tela pra sempre. */
@@ -92,7 +94,13 @@ function instalarAgora() {
      novo. isSilent=true manda a flag /S pro instalador (sem UI nenhuma);
      isForceRunAfter=true reabre o app sozinho ao terminar. */
   log('info', 'instalarAgora(): chamando quitAndInstall(isSilent=true, isForceRunAfter=true)');
-  autoUpdater.quitAndInstall(true, true);
+  instalando = true;
+  try {
+    autoUpdater.quitAndInstall(true, true);
+  } catch (erro) {
+    instalando = false;
+    throw erro;
+  }
 }
 
-module.exports = { iniciar, verificarAgora, instalarAgora };
+module.exports = { iniciar, verificarAgora, instalarAgora, estaInstalando: () => instalando };
