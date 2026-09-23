@@ -94,6 +94,7 @@ export function iniciar() {
     const confirmar = () => window.api.term.dadosRecebidos(id, new Blob([data]).size);
     const item = abas.get(id);
     if (!item) { confirmar(); return; }
+    if (data && id !== idAtivo) item.saidaNaoVista = true;
     item.term.write(data, confirmar);
   });
 
@@ -114,7 +115,9 @@ export function iniciar() {
     const item = abas.get(id);
     if (!item) return;
     if (ocupado) item.conclusaoPendente = false;
-    else if (item.ocupado && id !== idAtivo) item.conclusaoPendente = true;
+    // O aviso de ociosidade pode chegar depois de o usuario ler a resposta
+    // e trocar de aba. So notifica se ainda existe saida nao visualizada.
+    else if (item.ocupado && item.saidaNaoVista && id !== idAtivo) item.conclusaoPendente = true;
     item.ocupado = ocupado;
     atualizarSituacaoAba(item);
     if (id === idAtivo) atualizarInfo();
@@ -217,7 +220,7 @@ function montarAba(sessao) {
   const aba = criarAba(sessao);
   $('#abas-terminais').append(aba);
 
-  abas.set(sessao.id, { sessao, term, fit, host, aba, vivo: true, ocupado: false, conclusaoPendente: false, tituloProcesso: '' });
+  abas.set(sessao.id, { sessao, term, fit, host, aba, vivo: true, ocupado: false, conclusaoPendente: false, saidaNaoVista: false, tituloProcesso: '' });
   estado.anotacoesPorSessao.set(sessao.id, sessao.QUANTIDADE_ANOTACOES || 0);
   atualizarSeloAnotacoes(sessao.id);
   aplicarFiltroGrupo();
@@ -288,6 +291,7 @@ export function ativar(id) {
   }
   idAtivo = id;
   item.conclusaoPendente = false;
+  item.saidaNaoVista = false;
   atualizarSituacaoAba(item);
 
   const grupo = grupoDe(item.sessao);
@@ -373,6 +377,7 @@ export async function reiniciarAtivo() {
     item.vivo = true;
     item.ocupado = false;
     item.conclusaoPendente = false;
+    item.saidaNaoVista = false;
     item.aba.classList.remove('morta');
     atualizarSituacaoAba(item);
     item.term.reset();
