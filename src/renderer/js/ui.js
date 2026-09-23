@@ -119,6 +119,7 @@ export function confirmar(mensagem, aoConfirmar, rotuloConfirmar = 'Confirmar') 
 export const SITUACOES = {
   AND: 'IA trabalhando agora',
   OCI: 'Terminal ocioso',
+  NOV: 'Concluido — ainda nao visualizado',
   MOR: 'Processo encerrado',
   FEC: 'Encerrado — no historico',
 };

@@ -101,6 +101,8 @@ export function iniciar() {
     const item = abas.get(id);
     if (!item) return;
     item.vivo = false;
+    item.ocupado = false;
+    item.conclusaoPendente = id !== idAtivo;
     item.aba.classList.add('morta');
     atualizarSituacaoAba(item);
     item.term.write(`\r\n\x1b[90m\u2014 processo encerrado (codigo ${exitCode}). Ctrl+Shift+R reinicia esta aba. \u2014\x1b[0m\r\n`);
@@ -111,6 +113,8 @@ export function iniciar() {
   window.api.term.aoMudarAtividade(({ id, ocupado }) => {
     const item = abas.get(id);
     if (!item) return;
+    if (ocupado) item.conclusaoPendente = false;
+    else if (item.ocupado && id !== idAtivo) item.conclusaoPendente = true;
     item.ocupado = ocupado;
     atualizarSituacaoAba(item);
     if (id === idAtivo) atualizarInfo();
@@ -213,7 +217,7 @@ function montarAba(sessao) {
   const aba = criarAba(sessao);
   $('#abas-terminais').append(aba);
 
-  abas.set(sessao.id, { sessao, term, fit, host, aba, vivo: true, ocupado: false, tituloProcesso: '' });
+  abas.set(sessao.id, { sessao, term, fit, host, aba, vivo: true, ocupado: false, conclusaoPendente: false, tituloProcesso: '' });
   estado.anotacoesPorSessao.set(sessao.id, sessao.QUANTIDADE_ANOTACOES || 0);
   atualizarSeloAnotacoes(sessao.id);
   aplicarFiltroGrupo();
@@ -249,9 +253,12 @@ function criarAba(sessao) {
   return aba;
 }
 
-/** Situacao (cor do ponto) refletindo se o processo esta vivo/ocupado. */
+/** A conclusao ainda nao vista fica destacada ate a aba ser ativada. */
 function atualizarSituacaoAba(item) {
-  item.aba.dataset.situacao = !item.vivo ? 'MOR' : (item.ocupado ? 'AND' : 'OCI');
+  item.aba.dataset.situacao = item.conclusaoPendente ? 'NOV' : (!item.vivo ? 'MOR' : (item.ocupado ? 'AND' : 'OCI'));
+  item.aba.querySelector('.ponto-situacao').title = item.conclusaoPendente
+    ? 'Concluido — ainda nao visualizado'
+    : (!item.vivo ? 'Processo encerrado' : (item.ocupado ? 'IA trabalhando agora' : 'Terminal ocioso'));
 }
 
 function atualizarSeloAnotacoes(id) {
@@ -280,6 +287,8 @@ export function ativar(id) {
     outro.aba.classList.toggle('ativa', atual);
   }
   idAtivo = id;
+  item.conclusaoPendente = false;
+  atualizarSituacaoAba(item);
 
   const grupo = grupoDe(item.sessao);
   const chave = chaveGrupo(grupo);
@@ -362,6 +371,8 @@ export async function reiniciarAtivo() {
   try {
     const viva = await window.api.term.reconectar({ sessionId: item.sessao.id, cols: 100, rows: 30 });
     item.vivo = true;
+    item.ocupado = false;
+    item.conclusaoPendente = false;
     item.aba.classList.remove('morta');
     atualizarSituacaoAba(item);
     item.term.reset();
@@ -431,6 +442,7 @@ export function listarAbas() {
       || 'SH',
     vivo: item.vivo,
     ocupado: Boolean(item.ocupado),
+    conclusaoPendente: Boolean(item.conclusaoPendente),
     ativa: id === idAtivo,
     anotacoes: estado.anotacoesPorSessao.get(id) || 0,
   }));

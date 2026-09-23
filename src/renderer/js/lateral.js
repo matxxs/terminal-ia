@@ -48,6 +48,7 @@ export function desenhar() {
 /** A cor do projeto comunica o que os terminais dele estao fazendo. */
 function situacaoDoGrupo(terminais) {
   if (!terminais.length) return '';
+  if (terminais.some((ter) => ter.conclusaoPendente)) return 'NOV';
   if (terminais.some((ter) => ter.vivo && ter.ocupado)) return 'AND';
   if (terminais.some((ter) => ter.vivo)) return 'OCI';
   return 'MOR';

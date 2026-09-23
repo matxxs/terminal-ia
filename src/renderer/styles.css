@@ -10,6 +10,7 @@
   --acento-suave:   rgba(110, 168, 254, 0.14);
   --verde:          #4ade80;
   --amarelo:        #fbbf24;
+  --laranja:        #fb923c;
   --vermelho:       #f87171;
   --roxo:           #c084fc;
   --raio:           8px;
@@ -181,6 +182,7 @@ body {
   animation: piscar 1.1s ease-in-out infinite;
 }
 .grupo[data-situacao="OCI"] .grupo-cor { background: var(--verde);     color: var(--verde);     box-shadow: 0 0 7px currentColor; }
+.grupo[data-situacao="NOV"] .grupo-cor { background: var(--laranja); color: var(--laranja); box-shadow: 0 0 7px currentColor; }
 .grupo[data-situacao="MOR"] .grupo-cor { background: var(--vermelho); color: var(--vermelho); box-shadow: 0 0 7px currentColor; }
 
 @keyframes piscar {
@@ -497,6 +499,7 @@ body {
   animation: piscar 1.1s ease-in-out infinite;
 }
 .aba-terminal[data-situacao="OCI"] .ponto-situacao { background: var(--verde); }
+.aba-terminal[data-situacao="NOV"] .ponto-situacao { background: var(--laranja); box-shadow: 0 0 7px var(--laranja); }
 .aba-terminal[data-situacao="MOR"] .ponto-situacao { background: var(--vermelho); }
 
 .aba-icone {
